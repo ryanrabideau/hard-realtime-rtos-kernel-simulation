@@ -38,15 +38,14 @@ No hardware, drivers, or real-time OS APIs. Everything is self-contained and tes
 - GCC (C11 support)
 - make
 
-**Build & Run**
-Build and execute:
+**Build and execute:**
 
-make
-make run
+- make
+- make run
 
-Clean build artifacts:
+**Clean build artifacts:**
 
-make clean
+- make clean
 
 Change int scenario = 1; in main.c to test different modes (overload, deadline miss, etc.).
 
