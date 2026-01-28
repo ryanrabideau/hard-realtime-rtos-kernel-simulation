@@ -53,3 +53,17 @@ dkms.conf
 
 # debug information files
 *.dwo
+
+# Simulation outputs (optional - add if you don't want to commit logs)
+output.txt
+scenario_*.txt
+
+# Editor/IDE temp files (if you use VS Code, Vim, etc.)
+.vscode/
+*.swp
+*.swo
+
+# Python script outputs (if you add Gantt later)
+__pycache__/
+*.pyc
+gantt.png
