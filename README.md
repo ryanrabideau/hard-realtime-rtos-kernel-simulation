@@ -1,6 +1,6 @@
 # Hard Real-Time Operating System Kernel
 
-A minimal, deterministic, hard real-time operating system kernel written in pure C11, fully simulated in userspace on Linux. Built to master core RTOS concepts: fixed-priority preemptive scheduling, priority-inheritance mutexes, static memory management, deadline monitoring, watchdog fault detection, and formal schedulability analysis, all without dynamic allocation, threads, or external dependencies.
+A minimal, deterministic hard real-time RTOS kernel simulation written in pure C11, executed in userspace on Linux. Built to master core RTOS concepts: fixed-priority preemptive scheduling, priority-inheritance mutexes, static memory management, deadline monitoring, watchdog fault detection, and formal schedulability analysis, all without dynamic allocation, threads, or external dependencies.
 
 ## Project Overview
 
@@ -15,7 +15,7 @@ No hardware, drivers, or real-time OS APIs. Everything is self-contained and tes
 
 ## Features
 
-- Fixed-priority preemptive scheduler (Rate Monotonic)
+- Fixed-priority preemptive scheduling model (Rate Monotonic) implemented via deterministic task state switching
 - Mutexes with priority inheritance (blocks high-prio tasks from inversion)
 - Static task array + per-task 512-byte stacks with canary-based overflow detection
 - Tick-driven time model with simulated context (state machines + yield returns)
@@ -56,5 +56,5 @@ Change int scenario = 1; in main.c to test different modes (overload, deadline m
 - Fault tolerance: deadline monitoring, watchdog, overflow detection
 - Kernel fundamentals: task control blocks, simulated preemption, state machines
 - Formal analysis: Liu & Layland utilization bound, worst-case response times
-- Embedded-style C: no OS dependencies, minimal runtime, predictable behavior
+- Embedded-style C: no OS APIs, threads, or external libraries used by the kernel logic, minimal runtime, predictable behavior
 - Documentation: design decisions, lessons learned, timing comparison
