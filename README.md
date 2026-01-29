@@ -58,3 +58,4 @@ Change int scenario = 1; in main.c to test different modes (overload, deadline m
 - Formal analysis: Liu & Layland utilization bound, worst-case response times
 - Embedded-style C: no OS APIs, threads, or external libraries used by the kernel logic, minimal runtime, predictable behavior
 - Documentation: design decisions, lessons learned, timing comparison
+- Linux/WSL environment: bootstrapped and tested on Ubuntu (via WSL), using GCC and GNU Nano for development
