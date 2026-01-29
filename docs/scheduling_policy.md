@@ -6,7 +6,7 @@ Shorter period = higher priority.
 ## Why Rate Monotonic?
 - Simpler implementation and analysis than EDF
 - Industry standard for hard real-time systems
-- Predictable — easy to prove schedulability
+- Predictable, as it is easy to prove schedulability
 - Sufficient utilization for this project (~70% bound for n=3)
 
 ## How It Works
@@ -18,4 +18,4 @@ Shorter period = higher priority.
 Pros: Low overhead, analyzable (Liu & Layland bound), deterministic  
 Cons: Utilization capped (~69–78% depending on n), not optimal for aperiodic tasks
 
-Chosen over EDF for first implementation — easier to verify and debug.
+Chosen over EDF for first implementation. Easier to verify and debug.
