@@ -8,6 +8,11 @@ void task1_high(void) {
     switch (t->app_state) {
         case 0:
             mutex_lock(&shared_mutex);
+
+            if (shared_mutex.owner != t) {
+                return;
+            }
+            
             printf("[T1-high] Tick %u - entered critical section\n", system_ticks);
             t->app_sub_state = 0;
             t->app_state = 1;
@@ -59,6 +64,11 @@ void task3_low(void) {
     switch (t->app_state) {
         case 0:
             mutex_lock(&shared_mutex);
+
+            if (shared_mutex.owner != t) {
+                return;
+            }
+            
             shared_counter += 10;
             printf("[T3-low] Tick %u - counter now %d\n", system_ticks, shared_counter);
             t->app_sub_state = 0;
