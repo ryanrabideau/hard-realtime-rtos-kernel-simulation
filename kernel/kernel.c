@@ -160,11 +160,18 @@ void mutex_lock(mutex_t* m) {
         printf("Error: Task %u already owns mutex!\n", current_task->id);
     } else {
         task_block(current_task);
-        printf("Task %u waits on mutex held by %u\n", current_task->id, m->owner->id);
+
+        m->blocked_head = current_task;
+
+        printf("Task %u waits on mutex held by %u\n",
+               current_task->id, m->owner->id);
 
         if (current_task->priority < m->owner->priority) {
             printf("Inheritance: boosting owner %u from prio %u to %u\n",
-                   m->owner->id, m->owner->priority, current_task->priority);
+                   m->owner->id,
+                   m->owner->priority,
+                   current_task->priority);
+
             m->owner->priority = current_task->priority;
         }
 
@@ -178,14 +185,24 @@ void mutex_unlock(mutex_t* m) {
         return;
     }
 
-    m->locked = false;
-    m->owner = NULL;
+    tcb_t *waiter = m->blocked_head;
 
     if (current_task->priority != m->original_prio) {
         printf("Restoring owner prio from %u to %u\n",
-               current_task->priority, m->original_prio);
+               current_task->priority,
+               m->original_prio);
+
         current_task->priority = m->original_prio;
     }
 
+    m->locked = false;
+    m->owner = NULL;
+    m->blocked_head = NULL;
+
     printf("Task %u unlocks mutex\n", current_task->id);
+
+    if (waiter != NULL) {
+        task_unblock(waiter);
+        printf("Task %u awakened after mutex release\n", waiter->id);
+    }
 }
