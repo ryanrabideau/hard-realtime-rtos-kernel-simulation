@@ -38,6 +38,13 @@ typedef struct tcb {
     bool              deadline_miss;
 } tcb_t;
 
+typedef struct mutex {
+    bool        locked;
+    tcb_t      *owner;
+    uint8_t     original_prio;
+    tcb_t      *blocked_head;
+} mutex_t;
+
 extern tcb_t*         current_task;
 extern uint32_t       system_ticks;
 extern tcb_t          tasks[10];
