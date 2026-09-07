@@ -1,4 +1,5 @@
 #include "../include/kernel.h"
+
 #include <stdio.h>
 #include <stddef.h>
 #include <string.h>
@@ -14,6 +15,9 @@ mutex_t shared_mutex = {0};
 void kernel_init(void) {
     printf("Kernel initializing...\n");
 
+    system_ticks = 0;
+    watchdog_counter = 0;
+
     mutex_init(&shared_mutex);
 
     task_create(1, 3, task1_high);
@@ -21,26 +25,27 @@ void kernel_init(void) {
     task_create(3, 15, task3_low);
 
     /*
-     * Canonical Rate Monotonic task set used by the simulation
-     * and schedulability analysis.
+     * Canonical Rate Monotonic task set.
      *
-     * Lower numeric priority = higher scheduling priority.
+     * Shorter period = higher scheduling priority.
+     * Lower numeric priority value = higher priority.
      */
-    tasks[0].period_ticks    = 50;
-    tasks[0].deadline_ticks  = 50;
-    tasks[0].wcet_ticks      = 30;
+    tasks[0].period_ticks     = 50;
+    tasks[0].deadline_ticks   = 50;
+    tasks[0].wcet_ticks       = 30;
 
-    tasks[1].period_ticks    = 100;
-    tasks[1].deadline_ticks  = 100;
-    tasks[1].wcet_ticks      = 8;
+    tasks[1].period_ticks     = 100;
+    tasks[1].deadline_ticks   = 100;
+    tasks[1].wcet_ticks       = 8;
 
-    tasks[2].period_ticks    = 150;
-    tasks[2].deadline_ticks  = 150;
-    tasks[2].wcet_ticks      = 6;
+    tasks[2].period_ticks     = 150;
+    tasks[2].deadline_ticks   = 150;
+    tasks[2].wcet_ticks       = 6;
 
     current_task = &tasks[0];
 
-    printf("Kernel init complete. First task: %u\n", current_task->id);
+    printf("Kernel init complete. First task: %u\n",
+           current_task->id);
 }
 
 void kernel_tick(void) {
@@ -89,17 +94,13 @@ void task_create(uint32_t id,
     t->ready = true;
     t->entry = entry;
 
-    /*
-     * Default timing parameters.
-     * The canonical demonstration task set is assigned
-     * explicitly in kernel_init().
-     */
     t->period_ticks = 0;
-    t->deadline_ticks = 50;
-    t->wcet_ticks = 10;
+    t->deadline_ticks = 0;
+    t->wcet_ticks = 0;
 
     t->last_release = 0;
     t->runtime = 0;
+
     t->release_time = 0;
     t->deadline_time = 0;
     t->deadline_miss = false;
@@ -111,47 +112,49 @@ void task_create(uint32_t id,
 
     num_tasks++;
 
-    printf("Task %u created "
-           "(prio %u, deadline %u ticks, WCET %u ticks)\n",
+    printf("Task %u created at priority %u\n",
            id,
-           priority,
-           t->deadline_ticks,
-           t->wcet_ticks);
+           priority);
 }
 
 void task_release(uint32_t task_id) {
     for (uint32_t i = 0; i < num_tasks; i++) {
 
-        if (tasks[i].id == task_id) {
-
-            tasks[i].state = TASK_READY;
-            tasks[i].ready = true;
-
-            tasks[i].last_release = system_ticks;
-            tasks[i].release_time = system_ticks;
-
-            /*
-             * Each released job starts with a fresh
-             * deadline-miss state.
-             */
-            tasks[i].deadline_miss = false;
-
-            if (tasks[i].deadline_ticks > 0) {
-
-                tasks[i].deadline_time =
-                    system_ticks + tasks[i].deadline_ticks;
-
-                printf("Task %u released at %u, deadline at %u\n",
-                       task_id,
-                       system_ticks,
-                       tasks[i].deadline_time);
-            }
-
-            return;
+        if (tasks[i].id != task_id) {
+            continue;
         }
+
+        tcb_t *t = &tasks[i];
+
+        t->state = TASK_READY;
+        t->ready = true;
+
+        t->last_release = system_ticks;
+        t->release_time = system_ticks;
+
+        /*
+         * A new job starts with a fresh deadline status.
+         */
+        t->deadline_miss = false;
+
+        if (t->deadline_ticks > 0) {
+
+            t->deadline_time =
+                system_ticks + t->deadline_ticks;
+
+            printf("Task %u released at %u, deadline at %u\n",
+                   task_id,
+                   system_ticks,
+                   t->deadline_time);
+        } else {
+            t->deadline_time = 0;
+        }
+
+        return;
     }
 
-    printf("Task %u not found for release!\n", task_id);
+    printf("Task %u not found for release!\n",
+           task_id);
 }
 
 void task_init_stack(tcb_t* t) {
@@ -162,10 +165,6 @@ void task_init_stack(tcb_t* t) {
 
     t->stack_size_used = 0;
 
-    /*
-     * Bottom-of-stack sentinel used to detect simulated
-     * stack corruption.
-     */
     *(uint32_t*)(t->stack) = STACK_CANARY;
 
     printf("Task %u stack initialized "
@@ -210,15 +209,35 @@ void task_monitor_deadlines(void) {
     }
 }
 
+/*
+ * Record observable forward progress by the simulated system.
+ *
+ * A real embedded watchdog would normally be serviced only after
+ * critical system work completes successfully. Here, the simulation
+ * uses this function to model that heartbeat.
+ */
+void watchdog_kick(void) {
+    watchdog_counter = 0;
+}
+
+/*
+ * Called once per simulated tick.
+ *
+ * If no code calls watchdog_kick() for more than the configured
+ * timeout interval, the watchdog reports a stall.
+ */
 void watchdog_check(void) {
     watchdog_counter++;
 
-    if (watchdog_counter > 100) {
+    if (watchdog_counter > WATCHDOG_TIMEOUT_TICKS) {
 
         printf("!!! WATCHDOG TIMEOUT !!! "
-               "No progress in %u ticks\n",
+               "No progress for %u ticks\n",
                watchdog_counter);
 
+        /*
+         * Restart the monitoring interval after reporting the fault.
+         */
         watchdog_counter = 0;
     }
 }
@@ -236,14 +255,16 @@ void task_block(tcb_t* t) {
     t->state = TASK_BLOCKED;
     t->ready = false;
 
-    printf("Task %u blocked\n", t->id);
+    printf("Task %u blocked\n",
+           t->id);
 }
 
 void task_unblock(tcb_t* t) {
     t->state = TASK_READY;
     t->ready = true;
 
-    printf("Task %u unblocked\n", t->id);
+    printf("Task %u unblocked\n",
+           t->id);
 }
 
 void mutex_lock(mutex_t* m) {
@@ -251,53 +272,52 @@ void mutex_lock(mutex_t* m) {
 
         m->locked = true;
         m->owner = current_task;
-
-        /*
-         * Save the owner's original static priority so
-         * priority inheritance can later be reversed.
-         */
         m->original_prio = current_task->priority;
 
         printf("Task %u locks mutex\n",
                current_task->id);
 
-    } else if (m->owner == current_task) {
+        return;
+    }
+
+    if (m->owner == current_task) {
 
         printf("Error: Task %u already owns mutex!\n",
                current_task->id);
 
-    } else {
-
-        /*
-         * This simulation models a single blocked waiter.
-         */
-        task_block(current_task);
-
-        m->blocked_head = current_task;
-
-        printf("Task %u waits on mutex held by %u\n",
-               current_task->id,
-               m->owner->id);
-
-        /*
-         * Lower numeric priority means higher scheduling
-         * priority.
-         */
-        if (current_task->priority <
-            m->owner->priority) {
-
-            printf("Inheritance: boosting owner %u "
-                   "from prio %u to %u\n",
-                   m->owner->id,
-                   m->owner->priority,
-                   current_task->priority);
-
-            m->owner->priority =
-                current_task->priority;
-        }
-
-        task_yield();
+        return;
     }
+
+    /*
+     * This simulation intentionally models one blocked waiter.
+     * That is sufficient to demonstrate bounded priority inversion
+     * and priority inheritance without implementing a full wait queue.
+     */
+    task_block(current_task);
+
+    m->blocked_head = current_task;
+
+    printf("Task %u waits on mutex held by %u\n",
+           current_task->id,
+           m->owner->id);
+
+    /*
+     * Lower numeric priority means higher scheduling priority.
+     */
+    if (current_task->priority <
+        m->owner->priority) {
+
+        printf("Inheritance: boosting owner %u "
+               "from prio %u to %u\n",
+               m->owner->id,
+               m->owner->priority,
+               current_task->priority);
+
+        m->owner->priority =
+            current_task->priority;
+    }
+
+    task_yield();
 }
 
 void mutex_unlock(mutex_t* m) {
@@ -312,8 +332,7 @@ void mutex_unlock(mutex_t* m) {
     tcb_t *waiter = m->blocked_head;
 
     /*
-     * Restore the mutex owner's original priority
-     * if it was temporarily inherited.
+     * Undo temporary priority inheritance.
      */
     if (current_task->priority !=
         m->original_prio) {
@@ -335,8 +354,8 @@ void mutex_unlock(mutex_t* m) {
            current_task->id);
 
     /*
-     * Wake the blocked waiter after the resource
-     * becomes available.
+     * The waiter is awakened, but does not automatically receive
+     * ownership. It must run again and acquire the now-free mutex.
      */
     if (waiter != NULL) {
 
