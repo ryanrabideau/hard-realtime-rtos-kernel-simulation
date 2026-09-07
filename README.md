@@ -26,10 +26,10 @@ No hardware, drivers, or real-time OS APIs. Everything is self-contained and tes
 
 ## Project Structure
 
-- docs/ — Design docs and formal analysis (manifesto.md, design.md, scheduling_policy.md, memory_model.md, schedulability_analysis.md, timing_results.md)
-- include/ — Shared headers (kernel.h)
-- kernel/ — Core kernel files (kernel.c, task.c)
-- main.c — Simulation harness + test scenarios
+- [`docs/`](docs/) — Design docs and formal analysis (`manifesto.md`, `design.md`, `scheduling_policy.md`, `memory_model.md`, `schedulability_analysis.md`, `timing_results.md`)
+- [`include/`](include/) — Shared headers (`kernel.h`)
+- [`kernel/`](kernel/) — Core kernel files (`kernel.c`, `task.c`)
+- [`main.c`](main.c) — Simulation harness + test scenarios
 
 ## Prerequisites & Build
 
